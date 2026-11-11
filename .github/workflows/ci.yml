@@ -23,7 +23,7 @@ jobs:
       MAVEN_OPTS: -Xmx1024m
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build Docker image
         run: docker build --tag sukuru-api:${{ github.sha }} .
