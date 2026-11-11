@@ -23,8 +23,10 @@ import rw.shop.common.web.TenantContext;
 import rw.shop.config.JwtProperties;
 import rw.shop.identity.api.LoginRequest;
 import rw.shop.identity.api.LoginResponse;
+import rw.shop.identity.api.ProfileResponse;
 import rw.shop.identity.api.RegisterBusinessRequest;
 import rw.shop.identity.api.RegisterBusinessResponse;
+import rw.shop.identity.api.UpdateProfileRequest;
 import rw.shop.identity.api.BusinessOption;
 import rw.shop.identity.api.TokenResponse;
 import rw.shop.identity.domain.Membership;
@@ -177,6 +179,27 @@ public class AuthService {
                 .filter(MembershipSummary::active)
                 .map(membership -> new BusinessOption(membership.businessId(), membership.businessName()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProfileResponse profile(UUID userId) {
+        User user = userRepository.findById(userId).filter(value -> Boolean.TRUE.equals(value.getIsActive()))
+                .orElseThrow(this::invalidCredentials);
+        return toProfile(user);
+    }
+
+    @Transactional
+    public ProfileResponse updateProfile(UUID userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId).filter(value -> Boolean.TRUE.equals(value.getIsActive()))
+                .orElseThrow(this::invalidCredentials);
+        user.setFullName(request.fullName().trim());
+        user.setPhone(request.phone() == null || request.phone().isBlank() ? null : request.phone().trim());
+        user.setUpdatedAt(clock.instant());
+        return toProfile(userRepository.save(user));
+    }
+
+    private ProfileResponse toProfile(User user) {
+        return new ProfileResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhone());
     }
 
     @Transactional

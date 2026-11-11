@@ -25,6 +25,7 @@
         <bouncycastle.version>1.86</bouncycastle.version>
         <jacoco.version>0.8.13</jacoco.version>
         <dependency-check.version>13.0.0</dependency-check.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -103,12 +104,14 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

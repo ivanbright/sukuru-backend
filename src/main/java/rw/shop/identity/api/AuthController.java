@@ -11,11 +11,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import rw.shop.common.Ids;
 import rw.shop.common.web.TenantContext;
 import rw.shop.identity.service.AuthService;
+import rw.shop.identity.api.ProfileResponse;
+import rw.shop.identity.api.UpdateProfileRequest;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -51,6 +54,18 @@ public class AuthController {
     @Operation(summary = "List businesses available to the signed-in user")
     public List<BusinessOption> businesses() {
         return authService.businesses(TenantContext.requireUserId());
+    }
+
+    @GetMapping("/profile")
+    @Operation(summary = "Get the signed-in user's profile")
+    public ProfileResponse profile() {
+        return authService.profile(TenantContext.requireUserId());
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Update the signed-in user's profile")
+    public ProfileResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        return authService.updateProfile(TenantContext.requireUserId(), request);
     }
 
     @PostMapping("/switch-business")
