@@ -1,0 +1,355 @@
+Enum membership_role {
+  owner
+  manager
+  staff
+}
+
+Enum sale_status {
+  draft
+  completed
+  cancelled
+}
+
+Enum purchase_status {
+  draft
+  received
+  cancelled
+}
+
+Enum payment_method {
+  cash
+  mobile_money
+  bank_transfer
+  other
+}
+
+Enum movement_type {
+  purchase
+  sale
+  adjustment
+  return
+}
+
+// =====================================
+// 1. BUSINESSES AND USERS
+// =====================================
+
+Table businesses {
+  id uuid [pk]
+  name varchar(150) [not null]
+  business_type varchar(100)
+  phone varchar(30)
+  email varchar(150)
+  address text
+  country varchar(100)
+  currency varchar(10) [default: 'RWF']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz
+}
+
+Table users {
+  id uuid [pk]
+  full_name varchar(150) [not null]
+  email varchar(150) [not null]            // FIX: uniqueness now case-insensitive (see index below)
+  password_hash varchar(255) [not null]
+  phone varchar(30)
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz
+
+  indexes {
+    `lower(email)` [unique, name: 'users_email_lower_uq']
+  }
+}
+
+Table memberships {
+  id uuid [pk]
+  business_id uuid [not null]
+  user_id uuid [not null]
+  role membership_role [not null]
+  is_active boolean [not null, default: true]   // FIX: deactivate staff instead of deleting (keeps history valid)
+  joined_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, user_id) [unique]
+    (business_id, id) [unique]
+  }
+}
+
+// =====================================
+// 2. CUSTOMERS AND SUPPLIERS
+// =====================================
+
+Table customers {
+  id uuid [pk]
+  business_id uuid [not null]
+  name varchar(150) [not null]
+  phone varchar(30)
+  email varchar(150)
+  address text
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+  }
+}
+
+Table suppliers {
+  id uuid [pk]
+  business_id uuid [not null]
+  name varchar(150) [not null]
+  phone varchar(30)
+  email varchar(150)
+  address text
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+  }
+}
+
+// =====================================
+// 3. PRODUCTS AND CATEGORIES
+// =====================================
+
+Table categories {
+  id uuid [pk]
+  business_id uuid [not null]
+  name varchar(100) [not null]
+  description text
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+  }
+}
+
+Table products {
+  id uuid [pk]
+  business_id uuid [not null]
+  category_id uuid
+  name varchar(150) [not null]
+  sku varchar(100)
+  description text
+  unit varchar(30) [not null]
+  purchase_price decimal(14,2)
+  selling_price decimal(14,2)
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz
+
+  indexes {
+    (business_id, id) [unique]
+    (business_id, sku) [unique]
+  }
+}
+
+// =====================================
+// 4. SALES
+// =====================================
+
+Table sales {
+  id uuid [pk]
+  business_id uuid [not null]
+  customer_id uuid
+  created_by_user_id uuid [not null]
+  reference_number varchar(100)
+  status sale_status [default: 'draft']
+  total_amount decimal(14,2) [not null]
+  notes text
+  sold_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+  }
+
+  Note: '''
+    Payment status is DERIVED, not stored:
+    unpaid  = SUM(sale_payments.amount) = 0
+    partial = 0 < SUM < total_amount
+    paid    = SUM >= total_amount
+    Service layer blocks overpayment and payments on draft/cancelled sales.
+  '''
+}
+
+Table sale_items {
+  id uuid [pk]
+  business_id uuid [not null]
+  sale_id uuid [not null]
+  product_id uuid [not null]
+  quantity decimal(14,3) [not null]
+  unit_price decimal(14,2) [not null]
+  unit_cost decimal(14,2) [not null]       // FIX: cost snapshot at sale time, needed for accurate profit
+  subtotal decimal(14,2) [not null]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id, product_id) [unique]  // FIX: lets inventory_movements prove product matches the item
+  }
+}
+
+// =====================================
+// 5. PURCHASES
+// =====================================
+
+Table purchases {
+  id uuid [pk]
+  business_id uuid [not null]
+  supplier_id uuid
+  created_by_user_id uuid [not null]
+  reference_number varchar(100)
+  status purchase_status [default: 'draft']
+  total_amount decimal(14,2) [not null]
+  notes text
+  purchased_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+  }
+}
+
+Table purchase_items {
+  id uuid [pk]
+  business_id uuid [not null]
+  purchase_id uuid [not null]
+  product_id uuid [not null]
+  quantity decimal(14,3) [not null]
+  unit_cost decimal(14,2) [not null]
+  subtotal decimal(14,2) [not null]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id, product_id) [unique]  // FIX: same as sale_items
+  }
+}
+
+// =====================================
+// 6. INVENTORY (append-only ledger)
+// =====================================
+
+Table inventory_movements {
+  id uuid [pk]
+  business_id uuid [not null]
+  product_id uuid [not null]
+  movement_type movement_type [not null]
+  quantity_delta decimal(14,3) [not null]
+  sale_item_id uuid
+  purchase_item_id uuid
+  reason text
+  created_by_user_id uuid
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (business_id, id) [unique]
+    (business_id, product_id, created_at)   // FIX: supports stock-over-time queries
+  }
+
+  // FIX: sign and source must match the movement type
+  checks {
+    `(movement_type = 'sale'       AND quantity_delta < 0 AND sale_item_id IS NOT NULL AND purchase_item_id IS NULL)
+  OR (movement_type = 'purchase'   AND quantity_delta > 0 AND purchase_item_id IS NOT NULL AND sale_item_id IS NULL)
+  OR (movement_type IN ('adjustment','return') AND quantity_delta <> 0 AND sale_item_id IS NULL AND purchase_item_id IS NULL)` [name: 'movement_type_consistency']
+  }
+}
+
+// =====================================
+// 7. PAYMENTS
+// =====================================
+
+Table sale_payments {
+  id uuid [pk]
+  business_id uuid [not null]
+  sale_id uuid [not null]
+  amount decimal(14,2) [not null]
+  payment_method payment_method [not null]
+  reference_number varchar(100)
+  paid_at timestamptz [default: `now()`]
+  created_at timestamptz [default: `now()`]
+}
+
+Table purchase_payments {
+  id uuid [pk]
+  business_id uuid [not null]
+  purchase_id uuid [not null]
+  amount decimal(14,2) [not null]
+  payment_method payment_method [not null]
+  reference_number varchar(100)
+  paid_at timestamptz [default: `now()`]
+  created_at timestamptz [default: `now()`]
+}
+
+// =====================================
+// 8. RELATIONSHIPS
+// Delete policy: RESTRICT everywhere so history can never vanish,
+// except line items, which cascade from their parent so DRAFT
+// sales/purchases can be removed. Items referenced by an inventory
+// movement (completed documents) stay protected by the RESTRICT below.
+// =====================================
+
+// Identity
+Ref: memberships.business_id > businesses.id [delete: restrict]
+Ref: memberships.user_id > users.id [delete: restrict]
+
+// Business ownership
+Ref: customers.business_id > businesses.id [delete: restrict]
+Ref: suppliers.business_id > businesses.id [delete: restrict]
+Ref: categories.business_id > businesses.id [delete: restrict]
+Ref: products.business_id > businesses.id [delete: restrict]
+
+// Products
+Ref: products.(business_id, category_id) >
+     categories.(business_id, id) [delete: restrict]
+
+// Sales
+Ref: sales.business_id > businesses.id [delete: restrict]
+
+Ref: sales.(business_id, customer_id) >
+     customers.(business_id, id) [delete: restrict]
+
+Ref: sales.(business_id, created_by_user_id) >
+     memberships.(business_id, user_id) [delete: restrict]
+
+Ref: sale_items.(business_id, sale_id) >
+     sales.(business_id, id) [delete: cascade]
+
+Ref: sale_items.(business_id, product_id) >
+     products.(business_id, id) [delete: restrict]
+
+// Purchases
+Ref: purchases.business_id > businesses.id [delete: restrict]
+
+Ref: purchases.(business_id, supplier_id) >
+     suppliers.(business_id, id) [delete: restrict]
+
+Ref: purchases.(business_id, created_by_user_id) >
+     memberships.(business_id, user_id) [delete: restrict]
+
+Ref: purchase_items.(business_id, purchase_id) >
+     purchases.(business_id, id) [delete: cascade]
+
+Ref: purchase_items.(business_id, product_id) >
+     products.(business_id, id) [delete: restrict]
+
+// Inventory
+Ref: inventory_movements.(business_id, product_id) >
+     products.(business_id, id) [delete: restrict]
+
+// FIX: movement's product must equal the item's product
+Ref: inventory_movements.(business_id, sale_item_id, product_id) >
+     sale_items.(business_id, id, product_id) [delete: restrict]
+
+Ref: inventory_movements.(business_id, purchase_item_id, product_id) >
+     purchase_items.(business_id, id, product_id) [delete: restrict]
+
+// FIX: this link was missing
+Ref: inventory_movements.(business_id, created_by_user_id) >
+     memberships.(business_id, user_id) [delete: restrict]
+
+// Payments
+Ref: sale_payments.(business_id, sale_id) >
+     sales.(business_id, id) [delete: restrict]
+
+Ref: purchase_payments.(business_id, purchase_id) >
+     purchases.(business_id, id) [delete: restrict]

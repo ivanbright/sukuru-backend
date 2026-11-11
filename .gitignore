@@ -1,0 +1,15 @@
+target/
+/frontend/
+/.m2/
+/dispatch-design/
+/*.zip
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.vscode/
+.env
+*.log
+.DS_Store
+dependency-check-report.html
+dependency-check-data/

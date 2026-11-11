@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: shop-test
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+logging:
+  level:
+    root: WARN
+    rw.shop: INFO
+    org.springframework.test: INFO
+    org.testcontainers: INFO
+
+app:
+  jwt:
+    access-token-minutes: 15
+    refresh-token-days: 7
+  cors:
+    allowed-origins: http://localhost:3000
+  rate-limit:
+    login-per-ip-per-minute: 1000
+    login-failures-per-email-per-15-minutes: 1000
+  idempotency:
+    retention-hours: 1
+  cleanup:
+    cron: "0 0 */12 * * *"
