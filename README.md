@@ -56,6 +56,10 @@ Configuration is supplied with environment variables. `.env.example` documents t
 | `JWT_SECRET` | Required signing secret of at least 32 bytes. Use a unique, randomly generated value in each deployed environment. |
 | `JWT_ISSUER` | JWT issuer identifier. Defaults to `rw-shop`. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins. Local default is `http://localhost:3000`. |
+| `MAIL_NOTIFICATIONS_ENABLED` | Set `true` to send Premium upgrade requests to `BILLING_SUPPORT_EMAIL`; defaults to `false`. |
+| `MAIL_HOST`, `MAIL_PORT` | SMTP server configuration. Gmail uses `smtp.gmail.com` and port `587`. |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | SMTP account and app password. Keep the app password in local `.env` or Railway Variables, never in Git. |
+| `MAIL_FROM` | Optional sender address; defaults to `MAIL_USERNAME`. For Gmail, use the authenticated mailbox. |
 
 When testing the Railway API from the local frontend, include `http://localhost:3000` in the Railway API's `CORS_ALLOWED_ORIGINS` value. You can include the future deployed frontend origin as a second comma-separated origin when it is available.
 
@@ -156,6 +160,10 @@ Configure these backend environment variables in production:
 - `BILLING_MOBILE_MONEY_NUMBER` (defaults to `+250783453911`)
 - `BILLING_SUPPORT_EMAIL` (defaults to `mugishaivanbright250@gmail.com`)
 - `BILLING_ADMIN_KEY` (set a long, random secret; approval is disabled if this is empty)
+- `MAIL_NOTIFICATIONS_ENABLED=true`
+- `MAIL_HOST=smtp.gmail.com` and `MAIL_PORT=587`
+- `MAIL_USERNAME` and `MAIL_FROM` set to the sending Gmail mailbox
+- `MAIL_PASSWORD` set to a newly generated Google App Password in Railway Variables
 
 After verifying payment, an authenticated business owner with the admin key can approve a request through `POST /api/v1/billing/admin/requests/{requestId}/approve`, sending `X-Billing-Admin-Key` and a JSON body containing the request owner's `userId`. The payment page displays both IDs for a pending request. Approval activates Premium and updates the request in one database transaction. Keep the admin key private and rotate it if it is exposed. Upgrade requests and account plans are stored in the PostgreSQL migration `V008__account_billing.sql`.
 

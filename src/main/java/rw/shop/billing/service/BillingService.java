@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,12 +29,15 @@ public class BillingService {
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
     private final String adminKey;
+    private final ApplicationEventPublisher eventPublisher;
 
     public BillingService(JdbcTemplate jdbcTemplate, Clock clock,
-            @Value("${app.billing.admin-key:}") String adminKey) {
+            @Value("${app.billing.admin-key:}") String adminKey,
+            ApplicationEventPublisher eventPublisher) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
         this.adminKey = adminKey;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +84,11 @@ public class BillingService {
         } catch (DuplicateKeyException ex) {
             throw new ConflictException("You already have a pending upgrade request. Contact support if you need help.");
         }
+        Map<String, Object> user = jdbcTemplate.queryForMap(
+                "select full_name, email from users where id = ?", userId);
+        eventPublisher.publishEvent(new UpgradeRequestSubmitted(
+                id, userId, String.valueOf(user.get("full_name")), String.valueOf(user.get("email")),
+                request.paymentMethod(), trimToNull(request.paymentReference()), now));
         return new UpgradeRequestResponse(id, userId, "premium", request.paymentMethod(),
                 trimToNull(request.paymentReference()), "pending", now);
     }

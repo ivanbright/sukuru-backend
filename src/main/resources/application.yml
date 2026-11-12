@@ -29,6 +29,18 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      "[mail.smtp.auth]": true
+      "[mail.smtp.starttls.enable]": true
+      "[mail.smtp.starttls.required]": true
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
   mvc:
     problemdetails:
       enabled: false
@@ -79,6 +91,7 @@ app:
   billing:
     mobile-money-number: ${BILLING_MOBILE_MONEY_NUMBER:+250783453911}
     support-email: ${BILLING_SUPPORT_EMAIL:mugishaivanbright250@gmail.com}
+    email-notifications-enabled: ${MAIL_NOTIFICATIONS_ENABLED:false}
     admin-key: ${BILLING_ADMIN_KEY:}
   rate-limit:
     login-per-ip-per-minute: 10
